@@ -80,6 +80,8 @@ details table{width:100%;border-collapse:collapse}details td{padding:4px 0;borde
 .hint{font-size:13px;color:var(--mut);margin:4px 0 0}
 body.locked nav,body.locked .view,body.locked #pm-bar{display:none!important}
 #pin-ok{white-space:nowrap}
+.adm{display:flex;gap:14px}.adm button{background:none;border:0;font-size:13px;text-decoration:underline;cursor:pointer;padding:6px 0;min-height:32px;color:var(--mut)}.adm .arm{color:var(--red);font-weight:800}
+.edit{display:grid;gap:4px;margin-top:8px;padding:12px;border:1.5px solid var(--line);border-radius:6px}.edit label{margin:6px 0 4px}.edit .row{display:flex;gap:8px;margin-top:8px}
 </style>
 </head>
 <body class="locked">
@@ -143,7 +145,9 @@ body.locked nav,body.locked .view,body.locked #pm-bar{display:none!important}
 <input id="q" type="search" placeholder="설비, 점검자, 메모 검색" aria-label="검색">
 <select id="ft" aria-label="종류"><option value="">전체</option><option value="pm">PM 점검</option><option value="sop">SOP 작업</option><option value="ng">NG·특이 있음</option></select>
 <button class="ghost" id="csv">CSV 저장</button>
+<button class="ghost" id="adm">관리자</button>
 </div>
+<div id="admbox" hidden style="margin:0 0 12px"><div style="display:flex;gap:8px"><input id="apin" type="password" inputmode="numeric" autocomplete="off" placeholder="관리자 PIN" aria-label="관리자 PIN"><button class="primary" id="apin-ok" style="min-height:46px;white-space:nowrap">확인</button></div></div>
 <div class="msg" id="h-msg" role="status"></div>
 <ol id="list"></ol>
 </section>
@@ -322,6 +326,21 @@ addRec(r);savePrefs();$("#s-msg").textContent=`${savedText()} — ${sopName(r.so
 
 /* --- history --- */
 const itemQ=k=>(ITEMS.find(i=>i.k===k)||{q:k}).q;
+let admin="",editing=null;
+function editForm(r){const f=(k,l,v,t)=>`<label>${l}</label><input data-f="${k}" type="${t||"text"}" value="${esc(v||"")}">`;
+return `<div class="edit">${f("at","일시",r.at,"datetime-local")}${f("eqp","설비",r.eqp)}${r.type==="pm"?f("loc","위치",r.loc):f("ref","작업번호",r.ref)}${f("w1","작업자 1",r.w1)}${f("w2","작업자 2",r.w2)}<label>메모</label><textarea data-f="note">${esc(r.note||"")}</textarea><div class="row"><button class="primary" data-save="${esc(r.id)}">수정 저장</button><button class="ghost" data-cancel="1">취소</button></div></div>`}
+async function adminClick(e){const t=e.target.closest("[data-ed],[data-rm],[data-save],[data-cancel]");if(!t)return false;
+const msg=s=>{$("#h-msg").textContent=s};
+if(t.dataset.cancel){editing=null;renderList();return true}
+if(t.dataset.ed){editing=editing===t.dataset.ed?null:t.dataset.ed;armed=null;renderList();return true}
+if(t.dataset.rm){const id=t.dataset.rm;if(armed!==id){armed=id;renderList();return true}armed=null;msg("삭제 중…");
+try{await call({op:"del",admin,id});server=server.filter(r=>r.id!==id);merge();msg("시트에서 삭제했습니다.")}catch(err){msg(err&&err.code==="admin"?"관리자 PIN이 맞지 않습니다.":"삭제하지 못했습니다. 인터넷 연결을 확인해 주세요.");renderList()}return true}
+if(t.dataset.save){const id=t.dataset.save,old=server.find(r=>r.id===id);if(!old)return true;const nr=Object.assign({},old);
+for(const el of t.closest(".edit").querySelectorAll("[data-f]"))nr[el.dataset.f]=el.value.trim();
+if(!nr.at||!nr.w1){msg("일시와 작업자 1은 비울 수 없습니다.");return true}
+t.disabled=true;msg("수정 중…");
+try{await call(Object.assign({op:"upd",admin},sheetRow(nr)));server=server.map(r=>r.id===id?nr:r);editing=null;merge();msg("수정했습니다.")}catch(err){t.disabled=false;msg(err&&err.code==="admin"?"관리자 PIN이 맞지 않습니다.":"수정하지 못했습니다. 인터넷 연결을 확인해 주세요.")}return true}
+return false}
 function filtered(){const q=$("#q").value.trim().toLowerCase(),f=$("#ft").value;
 return recs.filter(r=>(!f||(f==="ng"?(r.ng&&r.ng.length)||(r.result&&r.result!=="완료"):r.type===f))&&
 (!q||[r.eqp,r.loc,r.w1,r.w2,r.note,r.ref,r.type==="sop"?sopName(r.sop):"PM "+(r.cls||"")].join(" ").toLowerCase().includes(q)))}
@@ -339,14 +358,14 @@ const its=r.items||{};extra+=`<details><summary>점검값 ${Object.keys(its).len
 return `<li class="rec"><div class="when num"><div class="d">${esc((d||"").slice(5).replace("-","/"))}</div><div class="h">${esc(h||"")}</div></div>
 <div><div class="ttl">${title}${tag}${r.pending?`<span class="tag" style="color:var(--mut)">업로드 대기</span>`:""}</div><div class="meta">${who}${r.loc?" · "+esc(r.loc):""}${r.ref?" · #"+esc(r.ref):""}</div>
 ${extra}${r.note?`<div class="note">${esc(r.note)}</div>`:""}
-${r.pending?`<button class="del${armed===r.id?" arm":""}" data-id="${esc(r.id)}">${armed===r.id?"정말 삭제? 다시 누르면 삭제":"삭제"}</button>`:""}</div></li>`}).join("")
+${r.pending?`<button class="del${armed===r.id?" arm":""}" data-id="${esc(r.id)}">${armed===r.id?"정말 삭제? 다시 누르면 삭제":"삭제"}</button>`:admin?`<div class="adm"><button data-ed="${esc(r.id)}">수정</button><button data-rm="${esc(r.id)}" class="${armed===r.id?"arm":""}">${armed===r.id?"정말 삭제? 다시 누르면 시트에서 삭제":"삭제"}</button></div>${editing===r.id?editForm(r):""}`:""}</div></li>`}).join("")
 :`<li class="empty">${recs.length?"조건에 맞는 기록이 없습니다.":"아직 기록이 없습니다. PM 점검이나 SOP 작업 탭에서 첫 기록을 남겨 보세요."}</li>`;
 const uniq=a=>[...new Set(a.filter(Boolean))];
 $("#names").innerHTML=uniq(recs.flatMap(r=>[r.w1,r.w2])).map(n=>`<option value="${esc(n)}">`).join("");
 $("#eqps").innerHTML=uniq(recs.map(r=>r.eqp)).map(n=>`<option value="${esc(n)}">`).join("");
 }
 $("#q").addEventListener("input",renderList);$("#ft").addEventListener("change",renderList);
-$("#list").addEventListener("click",async e=>{const b=e.target.closest(".del");if(!b)return;const id=b.dataset.id;
+$("#list").addEventListener("click",async e=>{if(await adminClick(e))return;const b=e.target.closest(".del");if(!b)return;const id=b.dataset.id;
 if(armed!==id){armed=id;renderList();return}armed=null;
 outbox=outbox.filter(r=>r.id!==id);saveOB();merge()});
 
@@ -363,6 +382,10 @@ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{t
 a.download=`${pmOnly?"PM_점검":"작업기록"}_${nowLocal().slice(0,10)}.csv`;document.body.appendChild(a);a.click();a.remove();
 });
 
+$("#adm").addEventListener("click",()=>{if(admin){admin="";editing=null;armed=null;$("#adm").textContent="관리자";$("#h-msg").textContent="관리자 모드를 껐습니다.";renderList();return}$("#admbox").hidden=!$("#admbox").hidden;if(!$("#admbox").hidden)$("#apin").focus()});
+$("#apin-ok").addEventListener("click",async()=>{const v=$("#apin").value.trim();if(!v)return;$("#h-msg").textContent="확인 중…";
+try{await call({op:"admin",admin:v});admin=v;$("#apin").value="";$("#admbox").hidden=true;$("#adm").textContent="관리자 해제";$("#h-msg").textContent="관리자 모드: 업로드된 기록을 수정·삭제할 수 있습니다.";renderList()}
+catch(e){$("#h-msg").textContent=e&&e.code==="admin"?"관리자 PIN이 맞지 않습니다.":"확인하려면 인터넷 연결이 필요합니다."}});
 restoreDraft();paintPM();merge();
 if(pin){document.body.classList.remove("locked");load()}else{setMode(false,"PIN 입력 필요");askPin()}
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
