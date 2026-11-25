@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>T1 GCS 점검</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="T1 점검">
+<meta name="theme-color" content="#ffffff">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: field logbook — plain, fast, one hand on a phone beside the unit.
+IDEA: the paper PM sheet made tappable; every row a check, off-normal turns red.
+PICTURE: the checklist itself, with a live NG counter pinned at the bottom.
+COLOUR and TYPE: white, black, signal red; Archivo wide numerals + Noto Sans KR.
+LAYOUT: one column, max 760px; tabs on top; history as stamped rows. */
+:root{color-scheme:light dark;--bg:light-dark(#fff,#0e0e0e);--ink:light-dark(#111,#f2f2f2);--mut:light-dark(#666,#9a9a9a);--line:light-dark(#d9d9d9,#2c2c2c);--soft:light-dark(#f3f3f3,#1a1a1a);--red:#e4002b;--redbg:light-dark(#fde8ec,#3a0c15)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Noto Sans KR",system-ui,sans-serif;overflow-x:clip}
+.num{font-family:Archivo,"Noto Sans KR",sans-serif;font-stretch:112%;font-weight:800;font-variant-numeric:tabular-nums}
+.wrap{max-width:760px;margin:0 auto;padding:0 max(4vw,14px)}
+header{border-top:8px solid var(--ink);padding-top:18px}
+.top{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:end;justify-content:space-between}
+h1{font-size:clamp(28px,6vw,42px);line-height:1.05;margin:0;font-weight:800;letter-spacing:-.02em}
+.status{font-size:13px;color:var(--mut);display:flex;gap:8px;align-items:center}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--mut)}.dot.on{background:var(--red)}
+nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:16px 0 0;border-bottom:3px solid var(--ink)}
+nav button{min-height:50px;border:0;background:none;font:inherit;font-weight:800;font-size:16px;color:var(--mut);cursor:pointer;border-bottom:5px solid transparent;margin-bottom:-3px}
+nav button[aria-selected=true]{color:var(--ink);border-color:var(--red)}
+.view{padding:18px 0 120px}.view[hidden]{display:none}
+h2{font-size:19px;margin:26px 0 4px;font-weight:800;display:flex;justify-content:space-between;align-items:center;gap:10px;padding-top:12px;border-top:3px solid var(--ink)}
+h2:first-child{margin-top:0}
+.sub{font-size:12px;color:var(--mut);font-weight:500}
+label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}
+input,select,textarea,button{font:inherit;font-size:16px;color:inherit}
+input,select,textarea{width:100%;min-height:46px;padding:10px 12px;border:1.5px solid var(--line);border-radius:6px;background:var(--bg)}
+textarea{min-height:84px;resize:vertical}
+:focus-visible{outline:3px solid var(--red);outline-offset:2px}
+.g2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{flex:1 1 auto;min-height:44px;padding:0 12px;border:1.5px solid var(--line);border-radius:6px;background:var(--bg);cursor:pointer;font-weight:700;font-size:15px;white-space:nowrap}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.seg button.bad[aria-pressed=true]{background:var(--red);border-color:var(--red);color:#fff}
+.it{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,15em);gap:8px 14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.it.ng{background:var(--redbg);margin:0 -10px;padding:12px 10px}
+.it .q{font-weight:700;font-size:15px;line-height:1.35}.it .q small{display:block;font-weight:400;color:var(--mut);font-size:12px}
+.unit{display:flex;align-items:center;gap:8px}.unit span{font-size:14px;color:var(--mut);white-space:nowrap}
+.unit input{text-align:right}
+@media(max-width:600px){.it{grid-template-columns:minmax(0,1fr)}}
+.allok{min-height:36px;padding:0 12px;border:1.5px solid var(--ink);border-radius:18px;background:var(--bg);font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:3px solid var(--ink);padding:10px max(4vw,14px) calc(10px + env(safe-area-inset-bottom))}
+.bar .in{max-width:760px;margin:0 auto;display:flex;gap:12px;align-items:center}
+.bar .cnt{font-size:14px;line-height:1.2;flex:1}.bar .cnt b{font-size:22px}
+.bar .cnt .r{color:var(--red)}
+.primary{min-height:52px;padding:0 22px;border:0;border-radius:6px;background:var(--red);color:#fff;font-weight:800;font-size:17px;cursor:pointer}
+.primary:disabled{opacity:.5}
+.wide{width:100%;margin-top:18px}
+.msg{min-height:22px;font-size:14px;margin-top:8px;color:var(--mut)}
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.tools input{flex:1 1 180px}.tools select{flex:0 1 150px}
+.ghost{min-height:46px;padding:0 14px;border:1.5px solid var(--ink);border-radius:6px;background:var(--bg);font-weight:700;cursor:pointer}
+ol{list-style:none;margin:0;padding:0}
+li.rec{display:grid;grid-template-columns:4.4em minmax(0,1fr);gap:4px 14px;padding:14px 0;border-bottom:1px solid var(--line)}
+.when{line-height:1.1}.when .d{font-size:13px;color:var(--mut);font-weight:600;font-stretch:100%}.when .h{font-size:21px}
+.ttl{font-weight:800}.meta{font-size:14px;color:var(--mut)}
+.tag{display:inline-block;font-size:12px;font-weight:800;padding:1px 8px;border-radius:3px;border:1.5px solid currentColor;margin-left:6px;vertical-align:1px;white-space:nowrap}
+.tag.r{color:var(--red)}
+.note{font-size:15px;margin-top:4px;white-space:pre-wrap;overflow-wrap:anywhere}
+.ngl{font-size:14px;color:var(--red);margin-top:4px}
+details{margin-top:6px;font-size:14px}summary{cursor:pointer;color:var(--mut);min-height:32px}
+details table{width:100%;border-collapse:collapse}details td{padding:4px 0;border-bottom:1px solid var(--line);vertical-align:top}details td:last-child{text-align:right;white-space:nowrap;padding-left:10px}
+.del{background:none;border:0;color:var(--mut);font-size:13px;text-decoration:underline;cursor:pointer;padding:6px 0;min-height:32px}
+.del.arm{color:var(--red);font-weight:800}
+.empty{padding:28px 0;color:var(--mut)}
+.hint{font-size:13px;color:var(--mut);margin:4px 0 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<div class="top"><h1>T1 GCS 점검 기록</h1><div class="status"><span class="dot" id="dot"></span><span id="mode">연결 중…</span></div></div>
+<nav role="tablist">
+<button role="tab" data-t="pm" aria-selected="true">PM 점검</button>
+<button role="tab" data-t="sop" aria-selected="false">SOP 작업</button>
+<button role="tab" data-t="hist" aria-selected="false">이력</button>
+</nav>
+</header>
+
+<div id="pinbox" hidden style="margin:16px 0 0;padding:16px;border:3px solid var(--red);border-radius:8px">
+<label for="pin" style="margin-top:0">팀 PIN</label>
+<div style="display:flex;gap:8px"><input id="pin" type="password" inputmode="numeric" autocomplete="off"><button class="primary" id="pin-ok" style="min-height:46px">확인</button></div>
+<div class="msg" id="pin-msg"></div>
+<p class="hint">처음 한 번만 입력하면 됩니다. PIN은 팀 관리자에게 받으세요.</p>
+</div>
+<section class="view" id="v-pm">
+<h2>기본 정보 <span class="sub">PM Sheet (Supply)</span></h2>
+<div class="g2">
+<div><label for="p-at">점검 일시</label><input id="p-at" type="datetime-local"></div>
+<div><label for="p-cls">분류</label><select id="p-cls"><option>Supply</option><option>Transfer</option><option>Mixing</option><option>MQC</option></select></div>
+</div>
+<div class="g2">
+<div><label for="p-eqp">설비명</label><input id="p-eqp" list="eqps" placeholder="예: F1CSF_FSL1730C_H04" autocomplete="off"></div>
+<div><label for="p-loc">위치</label><input id="p-loc" autocomplete="off"></div>
+</div>
+<div class="g2">
+<div><label for="p-w1">점검자 1</label><input id="p-w1" list="names" autocomplete="off"></div>
+<div><label for="p-w2">점검자 2</label><input id="p-w2" list="names" autocomplete="off"></div>
+</div>
+<div id="pm-items"></div>
+<h2>특이사항</h2>
+<textarea id="p-note" placeholder="이상 내용, 조치 사항 등"></textarea>
+<p class="hint">기준과 다른 값을 고르면 빨간색으로 표시되고 NG로 집계됩니다.</p>
+</section>
+
+<section class="view" id="v-sop" hidden>
+<h2>SOP 작업 기록</h2>
+<label for="s-sop">SOP</label><select id="s-sop"></select>
+<div class="g2">
+<div><label for="s-at">작업 일시</label><input id="s-at" type="datetime-local"></div>
+<div><label for="s-eqp">설비 / 위치</label><input id="s-eqp" list="eqps" autocomplete="off"></div>
+</div>
+<div class="g2">
+<div><label for="s-w1">작업자 1</label><input id="s-w1" list="names" autocomplete="off"></div>
+<div><label for="s-w2">작업자 2 (2인 1조)</label><input id="s-w2" list="names" autocomplete="off"></div>
+</div>
+<label for="s-ref">작업 번호 (i-Scheduler / NSWP, 선택)</label><input id="s-ref" autocomplete="off">
+<label>결과</label><div class="seg" id="s-res"></div>
+<label for="s-note">메모</label><textarea id="s-note" placeholder="교체 부품, 측정값, 이상 내용 등"></textarea>
+<button class="primary wide" id="s-save">기록 저장</button>
+<div class="msg" id="s-msg" role="status"></div>
+<p class="hint">SOP 목록은 샘플입니다.</p>
+</section>
+
+<section class="view" id="v-hist" hidden>
+<div class="tools">
+<input id="q" type="search" placeholder="설비, 점검자, 메모 검색" aria-label="검색">
+<select id="ft" aria-label="종류"><option value="">전체</option><option value="pm">PM 점검</option><option value="sop">SOP 작업</option><option value="ng">NG·특이 있음</option></select>
+<button class="ghost" id="csv">CSV 저장</button>
+</div>
+<div class="msg" id="h-msg" role="status"></div>
+<ol id="list"></ol>
+</section>
+</div>
+
+<div class="bar" id="pm-bar"><div class="in">
+<div class="cnt" aria-live="polite"><b class="num" id="c-done">0</b> / <span id="c-all">0</span> 항목 · <b class="num r" id="c-ng">0</b> <span class="r">NG</span><div class="msg" id="p-msg" style="margin:2px 0 0"></div></div>
+<button class="primary" id="p-save">점검 저장</button>
+</div></div>
+
+<datalist id="names"></datalist><datalist id="eqps"></datalist>
+<script>
+{
+const YN=["YES","NO"];
+const PM=[
+{s:"외관 및 기본 상태 점검",items:[
+["lamp","TOWER LAMP","Lights up OK",["점등","점멸"],"점등"],
+["sds","SDS·보호구 착용 스티커 부착 상태","SDS, protective gear sticker",YN,"YES"],
+["door","Unit Door 파손 이상 없음","No damage to unit door",YN,"YES"],
+["pallet","Drum Zone Pallet 보호 Support 파손 이상 없음","Drum zone pallet support",YN,"YES"],
+["exh","Main 배기압","Main exhaust pressure","psi"],
+["vent","Vent 배기압","Vent exhaust pressure","psi"],
+["n2","N2 purge 압력값","Main N2 purge pressure","psi"],
+["cda","CDA 압력값","Main CDA pressure","psi"]]},
+{s:"PUMP",items:[
+["pleak","Fitting부 Leak 이상 없음","Pump fitting leak check",YN,"YES"],
+["pdrv","구동 Pump","Driving pump",["A","B","C","D"],null],
+["ppsi","Pump 압력값 (설정값 확인)","Pump pressure value","psi"]]},
+{s:"Tank",items:[
+["tank","Supply Tank 외관 — Pin Hole·부식·Leak 이상 없음","Supply tank exterior",YN,"YES"],
+["flange","Flange Fitting부 부식·Leak 이상 없음","Flange fitting leak",YN,"YES"],
+["level","Level Sensor 감지 상태 (LL~HH) On/Off 정상","Level sensor detection",YN,"YES"],
+["tpa","Tank A 공급 압력값","Tank A supply pressure","psi"],
+["tpb","Tank B 공급 압력값","Tank B supply pressure","psi"],
+["tset","Tank 공급 설정값","Tank supply setting","psi"],
+["cable","Level Tree Cable 고정 상태 이상 없음","Level tree cable",YN,"YES"]]},
+{s:"Pre / Final Filter",items:[
+["fleak","Fitting부 Leak 이상 없음","Filter fitting leak",YN,"YES"],
+["imark","Fitting부 I-marking 정상 (수직 이탈 없음)","I-marking confirmed",YN,"YES"],
+["df","Final Filter IN/OUT 차압 (DF)","Final filter DF","psi"]]},
+{s:"POU",items:[
+["poup","POU 말단 압력","POU terminal pressure","psi"],
+["pouf","POU 말단 유량","POU flow rate","LPM"],
+["redun","Redundancy","Standby / Active",["사용","미사용"],null]]},
+{s:"기타 · 2S",items:[
+["pipe","배관 Fitting부 Leak 이상 없음 (Drain, M/V, A/V)","Pipe fitting leak",YN,"YES"],
+["dbl","이중배관 상태 — 눈관리·파손·변색 이상 없음","Double piping condition",YN,"YES"],
+["floor","바닥 Leak Sensor (Red/Green)","Floor leak sensor",["정상","Leak"],"정상"],
+["clean","Unit 외부·주위 Cleaning (2S)","Unit exterior cleaning",YN,"YES"]]},
+{s:"Inter-Lock 확인",items:[
+["i1","Unit Door Open Alarm","Unit Door Open",["USE","NOT USE"],"USE"],
+["i2","Tank Pressure \"H\" Run (Tank A)","Tank pressure H operation A",["USE","NOT USE"],"USE"],
+["i3","Tank Pressure \"H\" Run (Tank B)","Tank pressure H operation B",["USE","NOT USE"],"USE"],
+["i4","Auto Regulator (Tank A)","",["USE","NOT USE"],"USE"],
+["i5","Auto Regulator (Tank B)","",["USE","NOT USE"],"USE"],
+["i6","POU A Supply Enable","Supplying chemicals to POU A",["USE","NOT USE"],"USE"],
+["i7","Tank A Level Sensor Select","Supply Tank A interlock",["Using LT","Using LS"],"Using LS"],
+["i8","Tank B Level Sensor Select","Supply Tank B interlock",["Using LT","Using LS"],"Using LS"],
+["i9","Buzzer Keep Ringing","Buzzer continuously operates",["USE","NOT USE"],"NOT USE"],
+["i10","Bar-Code Reading","Setup / Idle / PM",["USE","NOT USE"],"NOT USE"],
+["i11","Excess Flow Shut Down","",["USE","NOT USE"],"NOT USE"],
+["i12","Waste Tank High Shutdown","",["USE","NOT USE"],"NOT USE"],
+["i13","ICPMS / Fire Extinguisher Inter Lock","",["USE","NOT USE"],"USE"],
+["i14","Redundancy Drain","",["USE","NOT USE"],"NOT USE"]]}
+];
+const ITEMS=PM.flatMap(g=>g.items.map(i=>({k:i[0],q:i[1],en:i[2],opt:Array.isArray(i[3])?i[3]:null,unit:Array.isArray(i[3])?null:i[3],norm:i[4]??null,sec:g.s})));
+const SOPS=[["reagent","Reagent Refill (Titrator 시약 교체)"],["koh","KOH Cleaning"],["fds","Filter Detector(Vent) Sensor Cal·교체"],["mtb","MTB(Multi-Box) Turn-On"],["cfilter","Chemical Manual Filter Replacement"],["waste","Waste Off-Load (폐액 반출)"],["sump","Sump Pit 점검·청소"]];
+const RES=[["완료","정상 완료"],["특이사항","특이사항"],["중단","중단"]];
+
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const nowLocal=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`};
+const sopName=id=>(SOPS.find(s=>s[0]===id)||[0,id])[1];
+const OB="pm-sop-outbox",DR="pm-sop-draft";
+let recs=[],server=[],outbox=[],col=null,armed=null,vals={},sres="완료",baseMode="연결 중…",flushing=false;
+try{outbox=JSON.parse(localStorage.getItem(OB)||"[]")}catch(e){}
+const isNg=(it,v)=>it.opt&&it.norm&&v&&v!==it.norm;
+
+/* --- PM form --- */
+$("#pm-items").innerHTML=PM.map((g,gi)=>`<h2>${esc(g.s)} <button class="allok" data-g="${gi}">모두 정상</button></h2>`+
+g.items.map(i=>{const it=ITEMS.find(x=>x.k===i[0]);
+const ctl=it.opt?`<div class="seg" data-k="${it.k}">${it.opt.map(o=>`<button type="button" data-v="${esc(o)}" aria-pressed="false" class="${it.norm&&o!==it.norm?"bad":""}">${esc(o)}</button>`).join("")}</div>`
+:`<div class="unit"><input inputmode="decimal" data-k="${it.k}" aria-label="${esc(it.q)}"><span>${esc(it.unit)}</span></div>`;
+return `<div class="it" id="it-${it.k}"><div class="q">${esc(it.q)}${it.en?`<small>${esc(it.en)}${it.norm?` · 기준 ${esc(it.norm)}`:""}</small>`:it.norm?`<small>기준 ${esc(it.norm)}</small>`:""}</div>${ctl}</div>`}).join("")).join("");
+
+function paintPM(){
+let done=0,ng=0;
+for(const it of ITEMS){const v=vals[it.k];const el=$("#it-"+it.k);
+if(v!==undefined&&v!=="")done++;if(isNg(it,v))ng++;el.classList.toggle("ng",!!isNg(it,v));
+if(it.opt)for(const b of el.querySelectorAll("button"))b.setAttribute("aria-pressed",String(b.dataset.v===v));}
+$("#c-done").textContent=done;$("#c-all").textContent=ITEMS.length;$("#c-ng").textContent=ng;
+}
+$("#pm-items").addEventListener("click",e=>{
+const ok=e.target.closest(".allok");
+if(ok){for(const i of PM[+ok.dataset.g].items){const it=ITEMS.find(x=>x.k===i[0]);if(it.norm)vals[it.k]=it.norm}paintPM();return}
+const b=e.target.closest(".seg button");if(!b)return;const k=b.parentNode.dataset.k;
+vals[k]=vals[k]===b.dataset.v?undefined:b.dataset.v;paintPM();saveDraft();
+});
+$("#pm-items").addEventListener("input",e=>{const k=e.target.dataset.k;if(k){vals[k]=e.target.value.trim();paintPM();saveDraft()}});
+for(const id of ["p-eqp","p-note","p-at"])$("#"+id).addEventListener("input",()=>saveDraft());
+function saveDraft(){try{localStorage.setItem(DR,JSON.stringify({vals,eqp:$("#p-eqp").value,note:$("#p-note").value,at:$("#p-at").value}))}catch(e){}}
+function restoreDraft(){try{const d=JSON.parse(localStorage.getItem(DR)||"null");if(!d)return;vals=d.vals||{};$("#p-eqp").value=d.eqp||"";$("#p-note").value=d.note||"";if(d.at)$("#p-at").value=d.at;
+for(const i of document.querySelectorAll("#pm-items input"))i.value=vals[i.dataset.k]||"";if(Object.keys(vals).length)$("#p-msg").textContent="작성 중이던 점검을 불러왔습니다."}catch(e){}}
+function resetPM(){vals={};for(const i of document.querySelectorAll("#pm-items input"))i.value="";$("#p-note").value="";$("#p-at").value=nowLocal();paintPM();try{localStorage.removeItem(DR)}catch(e){}}
+
+/* --- SOP form --- */
+$("#s-sop").innerHTML=SOPS.map(s=>`<option value="${s[0]}">${esc(s[1])}</option>`).join("");
+$("#s-res").innerHTML=RES.map((r,i)=>`<button type="button" data-v="${r[0]}" class="${i?"bad":""}" aria-pressed="${!i}">${r[1]}</button>`).join("");
+$("#s-res").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;sres=b.dataset.v;for(const x of $("#s-res").children)x.setAttribute("aria-pressed",String(x===b))});
+
+/* --- prefs --- */
+$("#p-at").value=$("#s-at").value=nowLocal();
+try{const p=JSON.parse(localStorage.getItem("pm-sop-prefs")||"{}");for(const k of ["p-w1","p-w2","p-loc","p-cls","s-w1","s-w2"])if(p[k])$("#"+k).value=p[k]}catch(e){}
+function savePrefs(){try{const p={};for(const k of ["p-w1","p-w2","p-loc","p-cls","s-w1","s-w2"])p[k]=$("#"+k).value;localStorage.setItem("pm-sop-prefs",JSON.stringify(p))}catch(e){}}
+for(const k of ["p-w1","p-w2","p-loc","p-cls","s-w1","s-w2"])$("#"+k).addEventListener("change",savePrefs);
+
+/* --- tabs --- */
+function tab(t){for(const b of document.querySelectorAll("nav button"))b.setAttribute("aria-selected",String(b.dataset.t===t));
+for(const v of ["pm","sop","hist"])$("#v-"+v).hidden=v!==t;$("#pm-bar").hidden=t!=="pm";if(t==="hist")renderList()}
+$("nav").addEventListener("click",e=>{const b=e.target.closest("button");if(b)tab(b.dataset.t)});
+
+/* --- storage --- */
+let online=false;
+function setMode(on,t){online=on;baseMode=t;showMode()}
+function showMode(){$("#dot").classList.toggle("on",online&&!outbox.length);$("#mode").textContent=baseMode+(outbox.length?` · 업로드 대기 ${outbox.length}건`:"")}
+function saveOB(){try{localStorage.setItem(OB,JSON.stringify(outbox))}catch(e){}}
+function merge(){const ids=new Set(server.map(r=>r.id));
+recs=[...outbox.filter(r=>!ids.has(r.id)).map(r=>Object.assign({},r,{pending:true})),...server];
+recs.sort((a,b)=>(b.at||"")<(a.at||"")?-1:1);renderList();showMode()}
+/* Google Sheet 연결: Apps Script 배포 후 받은 웹 앱 URL을 아래에 붙여 넣으세요 */
+const API="https://script.google.com/macros/s/AKfycbxgWpERWRzcBdmRN785O25s6g8XCMS3ORJv9vjoinItOe0JUSac1WxmCHm9PaR1i4c7/exec";
+let pin="";try{pin=localStorage.getItem("t1gcs-pin")||""}catch(e){}
+async function call(body,ms){
+if(!/^https:\/\/script\.google\.com\//.test(API))throw{code:"noapi"};
+const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),ms||20000);
+try{const res=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(Object.assign({pin},body)),signal:ctl.signal});
+const j=await res.json();if(!j.ok)throw{code:j.err||"fail"};return j}finally{clearTimeout(t)}}
+function sheetRow(r){const ts=r.created,at=(r.at||"").replace("T"," ");
+if(r.type==="pm"){const ng=(r.ng||[]).map(itemQ);
+return{sheet:"PM",headers:["ID","점검일시","분류","설비명","위치","점검자1","점검자2","NG 수","NG 항목",...ITEMS.map(i=>i.q+(i.unit?` (${i.unit})`:"")),"특이사항","저장시각","DATA"],
+row:[r.id,at,r.cls,r.eqp,r.loc,r.w1,r.w2,ng.length,ng.join(" / "),...ITEMS.map(i=>(r.items||{})[i.k]||""),r.note,ts,JSON.stringify(r)]}}
+return{sheet:"SOP",headers:["ID","작업일시","SOP","설비/위치","작업자1","작업자2","작업번호","결과","메모","저장시각","DATA"],
+row:[r.id,at,sopName(r.sop),r.eqp,r.w1,r.w2,r.ref,r.result,r.note,ts,JSON.stringify(r)]}}
+async function flush(){if(flushing||!outbox.length||!pin||!navigator.onLine)return;flushing=true;
+for(const r of [...outbox]){
+try{await call(Object.assign({op:"add"},sheetRow(r)));outbox=outbox.filter(x=>x.id!==r.id);saveOB();server.unshift(r)}
+catch(e){if(e&&e.code==="pin")askPin("PIN이 바뀌었습니다. 새 PIN을 입력해 주세요.");break}}
+flushing=false;merge();if(!outbox.length)setMode(true,"구글 시트 연결됨")}
+async function load(){if(!pin)return;
+try{const j=await call({op:"list"});server=(j.rows||[]).filter(x=>x&&x.id);setMode(true,"구글 시트 연결됨");merge();flush()}
+catch(e){if(e&&e.code==="pin"){askPin("PIN이 맞지 않습니다.");return}setMode(false,e&&e.code==="noapi"?"시트 미연결 — 폰에 저장":"오프라인 — 폰에 저장");merge()}}
+function addRec(r){r.id="r"+Date.now().toString(36)+Math.random().toString(36).slice(2,7);outbox.push(r);saveOB();merge();flush()}
+const savedText=()=>online&&navigator.onLine?"저장됨":"폰에 저장됨 — 신호가 잡히면 자동 업로드";
+window.addEventListener("online",load);setInterval(()=>{if(outbox.length)flush()},30000);
+function askPin(m){$("#pinbox").hidden=false;$("#pin-msg").textContent=m||"";$("#pin").focus()}
+$("#pin-ok").addEventListener("click",async()=>{const v=$("#pin").value.trim();if(!v)return;pin=v;$("#pin-msg").textContent="확인 중…";
+try{await call({op:"ping"});try{localStorage.setItem("t1gcs-pin",v)}catch(e){}$("#pinbox").hidden=true;load()}
+catch(e){pin="";$("#pin-msg").textContent=e&&e.code==="pin"?"PIN이 맞지 않습니다.":"확인하려면 인터넷 연결이 필요합니다."}});
+
+$("#p-save").addEventListener("click",async()=>{
+const r={type:"pm",at:$("#p-at").value,cls:$("#p-cls").value,eqp:$("#p-eqp").value.trim(),loc:$("#p-loc").value.trim(),w1:$("#p-w1").value.trim(),w2:$("#p-w2").value.trim(),note:$("#p-note").value.trim(),items:{},created:new Date().toISOString()};
+for(const it of ITEMS)if(vals[it.k])r.items[it.k]=vals[it.k];
+r.ng=ITEMS.filter(it=>isNg(it,r.items[it.k])).map(it=>it.k);
+if(!r.at||!r.eqp||!r.w1){$("#p-msg").textContent="점검 일시·설비명·점검자 1을 입력해 주세요.";(!r.eqp?$("#p-eqp"):!r.w1?$("#p-w1"):$("#p-at")).focus();return}
+const miss=ITEMS.length-Object.keys(r.items).length;
+if(miss&&$("#p-save").dataset.ok!=="1"){$("#p-save").dataset.ok="1";$("#p-msg").textContent=`${miss}개 항목이 비어 있습니다. 그대로 저장하려면 다시 누르세요.`;return}
+$("#p-save").dataset.ok="";
+addRec(r);savePrefs();$("#p-msg").textContent=`${savedText()} — ${r.eqp}${r.ng.length?` · NG ${r.ng.length}건`:""}`;resetPM();$("#p-eqp").value="";scrollTo({top:0});
+});
+$("#s-save").addEventListener("click",async()=>{
+const r={type:"sop",sop:$("#s-sop").value,at:$("#s-at").value,eqp:$("#s-eqp").value.trim(),w1:$("#s-w1").value.trim(),w2:$("#s-w2").value.trim(),ref:$("#s-ref").value.trim(),result:sres,note:$("#s-note").value.trim(),created:new Date().toISOString()};
+if(!r.at||!r.w1){$("#s-msg").textContent="작업 일시와 작업자 1은 꼭 입력해 주세요.";return}
+addRec(r);savePrefs();$("#s-msg").textContent=`${savedText()} — ${sopName(r.sop)}`;$("#s-note").value="";$("#s-ref").value="";$("#s-at").value=nowLocal();
+});
+
+/* --- history --- */
+const itemQ=k=>(ITEMS.find(i=>i.k===k)||{q:k}).q;
+function filtered(){const q=$("#q").value.trim().toLowerCase(),f=$("#ft").value;
+return recs.filter(r=>(!f||(f==="ng"?(r.ng&&r.ng.length)||(r.result&&r.result!=="완료"):r.type===f))&&
+(!q||[r.eqp,r.loc,r.w1,r.w2,r.note,r.ref,r.type==="sop"?sopName(r.sop):"PM "+(r.cls||"")].join(" ").toLowerCase().includes(q)))}
+function renderList(){
+const rows=filtered();
+$("#list").innerHTML=rows.length?rows.map(r=>{
+const [d,h]=(r.at||"").split("T");const who=[r.w1,r.w2].filter(Boolean).map(esc).join(" · ");
+let title,tag="",extra="";
+if(r.type==="pm"){
+const ng=r.ng||[];title=`PM 점검 · ${esc(r.cls||"")} — ${esc(r.eqp)}`;
+tag=ng.length?`<span class="tag r">NG ${ng.length}</span>`:`<span class="tag">이상 없음</span>`;
+if(ng.length)extra+=`<div class="ngl">${ng.map(k=>esc(itemQ(k))+": "+esc(r.items[k])).join("<br>")}</div>`;
+const its=r.items||{};extra+=`<details><summary>점검값 ${Object.keys(its).length}/${ITEMS.length}항목 보기</summary><table>${ITEMS.filter(i=>its[i.k]).map(i=>`<tr><td>${esc(i.q)}</td><td>${esc(its[i.k])}${i.unit?" "+esc(i.unit):""}</td></tr>`).join("")}</table></details>`;
+}else{title=esc(sopName(r.sop))+(r.eqp?` — ${esc(r.eqp)}`:"");if(r.result&&r.result!=="완료")tag=`<span class="tag r">${esc(r.result)}</span>`}
+return `<li class="rec"><div class="when num"><div class="d">${esc((d||"").slice(5).replace("-","/"))}</div><div class="h">${esc(h||"")}</div></div>
+<div><div class="ttl">${title}${tag}${r.pending?`<span class="tag" style="color:var(--mut)">업로드 대기</span>`:""}</div><div class="meta">${who}${r.loc?" · "+esc(r.loc):""}${r.ref?" · #"+esc(r.ref):""}</div>
+${extra}${r.note?`<div class="note">${esc(r.note)}</div>`:""}
+${r.pending?`<button class="del${armed===r.id?" arm":""}" data-id="${esc(r.id)}">${armed===r.id?"정말 삭제? 다시 누르면 삭제":"삭제"}</button>`:""}</div></li>`}).join("")
+:`<li class="empty">${recs.length?"조건에 맞는 기록이 없습니다.":"아직 기록이 없습니다. PM 점검이나 SOP 작업 탭에서 첫 기록을 남겨 보세요."}</li>`;
+const uniq=a=>[...new Set(a.filter(Boolean))];
+$("#names").innerHTML=uniq(recs.flatMap(r=>[r.w1,r.w2])).map(n=>`<option value="${esc(n)}">`).join("");
+$("#eqps").innerHTML=uniq(recs.map(r=>r.eqp)).map(n=>`<option value="${esc(n)}">`).join("");
+}
+$("#q").addEventListener("input",renderList);$("#ft").addEventListener("change",renderList);
+$("#list").addEventListener("click",async e=>{const b=e.target.closest(".del");if(!b)return;const id=b.dataset.id;
+if(armed!==id){armed=id;renderList();return}armed=null;
+outbox=outbox.filter(r=>r.id!==id);saveOB();merge()});
+
+$("#csv").addEventListener("click",async()=>{
+const rows=filtered(),q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+const pmOnly=rows.length&&rows.every(r=>r.type==="pm");
+const head=pmOnly?["점검일시","분류","설비명","위치","점검자1","점검자2",...ITEMS.map(i=>i.q+(i.unit?` (${i.unit})`:"")),"NG 항목","특이사항"]
+:["일시","종류","SOP/분류","설비","작업자1","작업자2","작업번호","결과","NG 항목","메모"];
+const body=rows.map(r=>{const ng=(r.ng||[]).map(itemQ).join(" / ");
+return (pmOnly?[r.at.replace("T"," "),r.cls,r.eqp,r.loc,r.w1,r.w2,...ITEMS.map(i=>(r.items||{})[i.k]),ng,r.note]
+:[r.at.replace("T"," "),r.type==="pm"?"PM 점검":"SOP 작업",r.type==="pm"?r.cls:sopName(r.sop),r.eqp,r.w1,r.w2,r.ref,r.type==="pm"?(ng?"NG":"이상 없음"):r.result,ng,r.note]).map(q).join(",")});
+const csv="﻿"+[head.map(q).join(","),...body].join("\r\n");
+const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+a.download=`${pmOnly?"PM_점검":"작업기록"}_${nowLocal().slice(0,10)}.csv`;document.body.appendChild(a);a.click();a.remove();
+});
+
+restoreDraft();paintPM();merge();
+if(pin)load();else{setMode(false,"PIN 입력 필요");askPin()}
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+</script>
+</body>
+</html>
