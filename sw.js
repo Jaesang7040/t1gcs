@@ -1,5 +1,5 @@
 // 오프라인용 캐시. 앱 파일을 고치면 버전 숫자를 올리세요.
-const CACHE = "t1gcs-v3";
+const CACHE = "t1gcs-v4";
 const FILES = ["./", "./index.html", "./manifest.json", "./icon-180.png", "./icon-192.png", "./icon-512.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
