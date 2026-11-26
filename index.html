@@ -82,6 +82,19 @@ body.locked nav,body.locked .view,body.locked #pm-bar{display:none!important}
 #pin-ok{white-space:nowrap}
 .adm{display:flex;gap:14px}.adm button{background:none;border:0;font-size:13px;text-decoration:underline;cursor:pointer;padding:6px 0;min-height:32px;color:var(--mut)}.adm .arm{color:var(--red);font-weight:800}
 .edit{display:grid;gap:4px;margin-top:8px;padding:12px;border:1.5px solid var(--line);border-radius:6px}.edit label{margin:6px 0 4px}.edit .row{display:flex;gap:8px;margin-top:8px}
+nav{grid-template-columns:repeat(5,minmax(0,1fr))!important}@media(max-width:430px){nav button{font-size:14px}}
+.admrow{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:4px;min-height:32px}.admrow .msg{margin:0;flex:1;font-size:13px}
+.admlink{background:none;border:0;color:var(--mut);font-size:13px;text-decoration:underline;cursor:pointer;min-height:32px;padding:0}
+body.locked .admrow,body.locked #admbox{display:none!important}
+.card{border:1.5px solid var(--line);border-radius:8px;padding:14px;margin-bottom:14px}.card[hidden]{display:none}
+.nt{border-bottom:1px solid var(--line);padding:14px 0}.nt h3{margin:0;font-size:17px;line-height:1.35}.nt .body{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:8px;font-size:15px}
+.nt.imp h3::before{content:"중요";display:inline-block;font-size:12px;color:#fff;background:var(--red);border-radius:3px;padding:1px 7px;margin-right:6px;vertical-align:2px}
+.fbtn{display:inline-flex;align-items:center;gap:6px;min-height:42px;padding:0 12px;border:1.5px solid var(--ink);border-radius:6px;background:var(--bg);font-weight:700;font-size:14px;cursor:pointer;margin-top:8px;max-width:100%;flex:none}
+.fbtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fbtn:disabled{opacity:.5}
+.cat{font-size:13px;font-weight:800;color:var(--mut);margin:18px 0 0;padding-top:10px;border-top:3px solid var(--ink)}
+.lf{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}.lf .nm{font-weight:700;font-size:15px;overflow-wrap:anywhere}.lf .fbtn{margin-top:0}
+nav .dot2::after{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);margin-left:4px;vertical-align:3px}
+.chk{display:flex!important;align-items:center;gap:8px;font-size:14px}.chk input{width:22px;min-height:22px}
 </style>
 </head>
 <body class="locked">
@@ -92,7 +105,11 @@ body.locked nav,body.locked .view,body.locked #pm-bar{display:none!important}
 <button role="tab" data-t="pm" aria-selected="true">PM 점검</button>
 <button role="tab" data-t="sop" aria-selected="false">SOP 작업</button>
 <button role="tab" data-t="hist" aria-selected="false">이력</button>
+<button role="tab" data-t="notice" aria-selected="false" id="nav-notice">공지</button>
+<button role="tab" data-t="lib" aria-selected="false">자료실</button>
 </nav>
+<div class="admrow"><span class="msg" id="a-msg" role="status"></span><button class="admlink" id="adm">관리자</button></div>
+<div id="admbox" hidden style="margin:0 0 8px"><div style="display:flex;gap:8px"><input id="apin" type="password" inputmode="numeric" autocomplete="off" placeholder="관리자 PIN" aria-label="관리자 PIN"><button class="primary" id="apin-ok" style="min-height:46px;white-space:nowrap">확인</button></div></div>
 </header>
 
 <div id="pinbox" hidden style="margin:16px 0 0;padding:16px;border:3px solid var(--red);border-radius:8px">
@@ -145,11 +162,30 @@ body.locked nav,body.locked .view,body.locked #pm-bar{display:none!important}
 <input id="q" type="search" placeholder="설비, 점검자, 메모 검색" aria-label="검색">
 <select id="ft" aria-label="종류"><option value="">전체</option><option value="pm">PM 점검</option><option value="sop">SOP 작업</option><option value="ng">NG·특이 있음</option></select>
 <button class="ghost" id="csv">CSV 저장</button>
-<button class="ghost" id="adm">관리자</button>
 </div>
-<div id="admbox" hidden style="margin:0 0 12px"><div style="display:flex;gap:8px"><input id="apin" type="password" inputmode="numeric" autocomplete="off" placeholder="관리자 PIN" aria-label="관리자 PIN"><button class="primary" id="apin-ok" style="min-height:46px;white-space:nowrap">확인</button></div></div>
 <div class="msg" id="h-msg" role="status"></div>
 <ol id="list"></ol>
+</section>
+<section class="view" id="v-notice" hidden>
+<div class="card" id="n-form" hidden>
+<label for="n-title" style="margin-top:0">공지 제목</label><input id="n-title" autocomplete="off">
+<label for="n-body">내용</label><textarea id="n-body" placeholder="링크(https://…)를 넣으면 눌러서 열 수 있습니다"></textarea>
+<label class="chk"><input type="checkbox" id="n-top"> 중요 공지 (맨 위 고정)</label>
+<label for="n-file">첨부파일 (선택, 20MB 이하)</label><input id="n-file" type="file">
+<button class="primary wide" id="n-save">공지 등록</button>
+</div>
+<div class="msg" id="n-msg" role="status"></div>
+<div id="n-list"></div>
+</section>
+<section class="view" id="v-lib" hidden>
+<div class="card" id="l-form" hidden>
+<label for="l-cat" style="margin-top:0">분류</label><input id="l-cat" list="l-cats" placeholder="예: Slurry, Chemical, 안전교육 (비우면 일반)" autocomplete="off"><datalist id="l-cats"></datalist>
+<label for="l-file">파일 (여러 개 가능, 각 20MB 이하)</label><input id="l-file" type="file" multiple>
+<button class="primary wide" id="l-save">자료 올리기</button>
+</div>
+<div class="tools"><input id="lq" type="search" placeholder="자료 이름 검색" aria-label="자료 검색"><select id="lcat" aria-label="분류"></select></div>
+<div class="msg" id="l-msg" role="status"></div>
+<div id="l-list"></div>
 </section>
 </div>
 
@@ -267,7 +303,7 @@ for(const k of ["p-w1","p-w2","p-loc","p-cls","s-w1","s-w2"])$("#"+k).addEventLi
 
 /* --- tabs --- */
 function tab(t){for(const b of document.querySelectorAll("nav button"))b.setAttribute("aria-selected",String(b.dataset.t===t));
-for(const v of ["pm","sop","hist"])$("#v-"+v).hidden=v!==t;$("#pm-bar").hidden=t!=="pm";if(t==="hist")renderList()}
+for(const v of ["pm","sop","hist","notice","lib"])$("#v-"+v).hidden=v!==t;$("#pm-bar").hidden=t!=="pm";if(t==="hist")renderList();if(t==="notice")loadNotices(true);if(t==="lib")loadLib()}
 $("nav").addEventListener("click",e=>{const b=e.target.closest("button");if(b)tab(b.dataset.t)});
 
 /* --- storage --- */
@@ -298,7 +334,7 @@ try{await call(Object.assign({op:"add"},sheetRow(r)));outbox=outbox.filter(x=>x.
 catch(e){if(e&&e.code==="pin")askPin("PIN이 바뀌었습니다. 새 PIN을 입력해 주세요.");break}}
 flushing=false;merge();if(!outbox.length)setMode(true,"구글 시트 연결됨")}
 async function load(){if(!pin)return;
-try{const j=await call({op:"list"});server=(j.rows||[]).filter(x=>x&&x.id);setMode(true,"구글 시트 연결됨");merge();flush()}
+try{const j=await call({op:"list"});server=(j.rows||[]).filter(x=>x&&x.id);setMode(true,"구글 시트 연결됨");merge();flush();loadNotices(false)}
 catch(e){if(e&&e.code==="pin"){askPin("PIN이 맞지 않습니다.");return}setMode(false,e&&e.code==="noapi"?"시트 미연결 — 폰에 저장":"오프라인 — 폰에 저장");merge()}}
 function addRec(r){r.id="r"+Date.now().toString(36)+Math.random().toString(36).slice(2,7);outbox.push(r);saveOB();merge();flush()}
 const savedText=()=>online&&navigator.onLine?"저장됨":"폰에 저장됨 — 신호가 잡히면 자동 업로드";
@@ -382,10 +418,68 @@ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{t
 a.download=`${pmOnly?"PM_점검":"작업기록"}_${nowLocal().slice(0,10)}.csv`;document.body.appendChild(a);a.click();a.remove();
 });
 
-$("#adm").addEventListener("click",()=>{if(admin){admin="";editing=null;armed=null;$("#adm").textContent="관리자";$("#h-msg").textContent="관리자 모드를 껐습니다.";renderList();return}$("#admbox").hidden=!$("#admbox").hidden;if(!$("#admbox").hidden)$("#apin").focus()});
-$("#apin-ok").addEventListener("click",async()=>{const v=$("#apin").value.trim();if(!v)return;$("#h-msg").textContent="확인 중…";
-try{await call({op:"admin",admin:v});admin=v;$("#apin").value="";$("#admbox").hidden=true;$("#adm").textContent="관리자 해제";$("#h-msg").textContent="관리자 모드: 업로드된 기록을 수정·삭제할 수 있습니다.";renderList()}
-catch(e){$("#h-msg").textContent=e&&e.code==="admin"?"관리자 PIN이 맞지 않습니다.":"확인하려면 인터넷 연결이 필요합니다."}});
+const fmtSize=b=>b>=1048576?(b/1048576).toFixed(1)+" MB":Math.max(1,Math.round(b/1024))+" KB";
+const fmtAt=s=>{const d=new Date(s);return isNaN(d)?String(s||""):`${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
+const linkify=s=>esc(s).replace(/https:\/\/[^\s<]+/g,u=>`<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
+const lsGet=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const MAXF=20*1048576;
+const readB64=f=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(",")[1]||"");r.onerror=no;r.readAsDataURL(f)});
+let notices=lsGet("t1-notices",[]),libFiles=lsGet("t1-lib",[]),nArmed=null,lArmed=null;
+function amsg(s){$("#a-msg").textContent=s}
+function adminUI(){$("#adm").textContent=admin?"관리자 해제":"관리자";$("#n-form").hidden=!admin;$("#l-form").hidden=!admin;renderList();renderNotices();renderLib()}
+$("#adm").addEventListener("click",()=>{if(admin){admin="";editing=null;armed=nArmed=lArmed=null;amsg("관리자 모드를 껐습니다.");adminUI();return}$("#admbox").hidden=!$("#admbox").hidden;if(!$("#admbox").hidden)$("#apin").focus()});
+$("#apin-ok").addEventListener("click",async()=>{const v=$("#apin").value.trim();if(!v)return;amsg("확인 중…");
+try{await call({op:"admin",admin:v});admin=v;$("#apin").value="";$("#admbox").hidden=true;amsg("관리자 모드: 기록 수정·삭제, 공지·자료 등록·삭제 가능");adminUI()}
+catch(e){amsg(e&&e.code==="admin"?"관리자 PIN이 맞지 않습니다.":"확인하려면 인터넷 연결이 필요합니다.")}});
+/* --- 공지사항 --- */
+const newestAt=()=>notices.reduce((m,n)=>n.at>m?n.at:m,"");
+function seenBadge(){const nw=newestAt();$("#nav-notice").classList.toggle("dot2",!!nw&&nw>lsGet("t1-nseen",""))}
+function markSeen(){const nw=newestAt();if(nw)lsSet("t1-nseen",nw);seenBadge()}
+function renderNotices(){
+const rows=[...notices].sort((a,b)=>(b.top-a.top)||(b.at>a.at?1:-1));
+$("#n-list").innerHTML=rows.length?rows.map(n=>`<div class="nt${n.top?" imp":""}"><h3>${esc(n.title)}</h3><div class="meta">${esc(fmtAt(n.at))}</div>${n.body?`<div class="body">${linkify(n.body)}</div>`:""}${n.fid?`<button class="fbtn" data-fid="${esc(n.fid)}" data-fname="${esc(n.fname)}">첨부 <span>${esc(n.fname)}</span> ${esc(fmtSize(n.size))}</button>`:""}${admin?`<div class="adm"><button data-ndel="${esc(n.id)}" class="${nArmed===n.id?"arm":""}">${nArmed===n.id?"정말 삭제? 다시 누르면 삭제":"공지 삭제"}</button></div>`:""}</div>`).join(""):`<p class="empty">등록된 공지가 없습니다.</p>`;
+seenBadge()}
+async function loadNotices(view){renderNotices();if(view)markSeen();if(!pin)return;
+try{const j=await call({op:"notices"});notices=j.rows||[];lsSet("t1-notices",notices);renderNotices();if(view){markSeen();$("#n-msg").textContent=""}}
+catch(e){if(view)$("#n-msg").textContent="오프라인 — 마지막으로 받은 공지를 보여줍니다."}}
+$("#n-save").addEventListener("click",async()=>{const m=s=>{$("#n-msg").textContent=s};const title=$("#n-title").value.trim();if(!title){m("제목을 입력해 주세요.");$("#n-title").focus();return}
+const f=$("#n-file").files[0];if(f&&f.size>MAXF){m("첨부파일은 20MB 이하만 올릴 수 있습니다.");return}
+const b=$("#n-save");b.disabled=true;m(f?"첨부파일과 함께 등록 중…":"등록 중…");
+try{const body={op:"notice_add",admin,title,body:$("#n-body").value.trim(),top:$("#n-top").checked};if(f)body.file={name:f.name,mime:f.type,b64:await readB64(f)};
+await call(body,180000);$("#n-title").value="";$("#n-body").value="";$("#n-top").checked=false;$("#n-file").value="";await loadNotices(true);m("공지를 등록했습니다.")}
+catch(e){m(e&&e.code==="admin"?"관리자 PIN이 맞지 않습니다.":"등록하지 못했습니다. 인터넷 연결이나 파일 크기를 확인해 주세요.")}b.disabled=false});
+/* --- 자료실 --- */
+function renderLib(){const q=$("#lq").value.trim().toLowerCase(),c=$("#lcat").value;
+const cats=[...new Set(libFiles.map(f=>f.cat))].sort((a,b)=>a==="일반"?1:b==="일반"?-1:a.localeCompare(b,"ko"));
+$("#lcat").innerHTML=`<option value="">전체 분류</option>`+cats.map(x=>`<option value="${esc(x)}"${x===c?" selected":""}>${esc(x)}</option>`).join("");
+$("#l-cats").innerHTML=cats.map(x=>`<option value="${esc(x)}">`).join("");
+const fs=libFiles.filter(f=>(!c||f.cat===c)&&(!q||f.name.toLowerCase().includes(q)));
+if(!fs.length){$("#l-list").innerHTML=`<p class="empty">${libFiles.length?"조건에 맞는 자료가 없습니다.":"등록된 자료가 없습니다."}</p>`;return}
+const by={};for(const f of fs)(by[f.cat]=by[f.cat]||[]).push(f);
+$("#l-list").innerHTML=cats.filter(x=>by[x]).map(x=>`<div class="cat">${esc(x)} · ${by[x].length}</div>`+by[x].sort((a,b)=>a.name.localeCompare(b.name,"ko")).map(f=>`<div class="lf"><div><div class="nm">${esc(f.name)}</div><div class="meta">${esc(fmtSize(f.size))} · ${esc(fmtAt(f.at).slice(0,10))}</div>${admin?`<div class="adm"><button data-ldel="${esc(f.id)}" class="${lArmed===f.id?"arm":""}">${lArmed===f.id?"정말 삭제? 다시 누르면 삭제":"삭제"}</button></div>`:""}</div><button class="fbtn" data-fid="${esc(f.id)}" data-fname="${esc(f.name)}"><span>열기</span></button></div>`).join("")).join("")}
+async function loadLib(){renderLib();if(!pin)return;
+try{const j=await call({op:"lib"},60000);libFiles=j.files||[];lsSet("t1-lib",libFiles);$("#l-msg").textContent="";renderLib()}
+catch(e){$("#l-msg").textContent="오프라인 — 마지막으로 받은 목록입니다. 파일을 열려면 인터넷이 필요합니다."}}
+$("#lq").addEventListener("input",renderLib);$("#lcat").addEventListener("change",renderLib);
+$("#l-save").addEventListener("click",async()=>{const m=s=>{$("#l-msg").textContent=s};const fs=[...$("#l-file").files];if(!fs.length){m("올릴 파일을 골라 주세요.");return}
+const big=fs.find(f=>f.size>MAXF);if(big){m(`${big.name}: 20MB 이하만 올릴 수 있습니다.`);return}
+const cat=$("#l-cat").value.trim()||"일반",b=$("#l-save");b.disabled=true;let done=0;
+try{for(const f of fs){m(`올리는 중… (${done+1}/${fs.length}) ${f.name}`);await call({op:"lib_add",admin,cat,file:{name:f.name,mime:f.type,b64:await readB64(f)}},180000);done++}
+$("#l-file").value="";await loadLib();m(`${done}개 자료를 올렸습니다.`)}
+catch(e){m(e&&e.code==="admin"?"관리자 PIN이 맞지 않습니다.":`${done}개 올림. 나머지는 실패했습니다. 인터넷 연결이나 파일 크기를 확인해 주세요.`)}b.disabled=false});
+/* --- 파일 열기 · 삭제 --- */
+async function openFile(btn){const sec=btn.closest("section"),el=sec&&sec.querySelector("[role=status]"),m=s=>{if(el)el.textContent=s};
+if(!navigator.onLine){m("파일을 열려면 인터넷 연결이 필요합니다.");return}btn.disabled=true;m("파일 받는 중…");
+try{const j=await call({op:"file",id:btn.dataset.fid},120000);const bin=atob(j.b64);const u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+const url=URL.createObjectURL(new Blob([u8],{type:j.mime||"application/octet-stream"}));const a=document.createElement("a");a.href=url;a.download=j.name||btn.dataset.fname||"file";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);m("")}
+catch(e){m(e&&e.code==="big"?"파일이 커서 앱에서 열 수 없습니다. 관리자에게 문의하세요.":"파일을 받지 못했습니다. 인터넷 연결을 확인해 주세요.")}btn.disabled=false}
+document.addEventListener("click",async e=>{const fb=e.target.closest("[data-fid]");if(fb){openFile(fb);return}
+const nd=e.target.closest("[data-ndel]");if(nd){const id=nd.dataset.ndel;if(nArmed!==id){nArmed=id;renderNotices();return}nArmed=null;$("#n-msg").textContent="삭제 중…";
+try{await call({op:"notice_del",admin,id});notices=notices.filter(n=>n.id!==id);lsSet("t1-notices",notices);renderNotices();$("#n-msg").textContent="공지를 삭제했습니다."}catch(err){renderNotices();$("#n-msg").textContent="삭제하지 못했습니다."}return}
+const ld=e.target.closest("[data-ldel]");if(ld){const id=ld.dataset.ldel;if(lArmed!==id){lArmed=id;renderLib();return}lArmed=null;$("#l-msg").textContent="삭제 중…";
+try{await call({op:"lib_del",admin,id});libFiles=libFiles.filter(f=>f.id!==id);lsSet("t1-lib",libFiles);renderLib();$("#l-msg").textContent="자료를 삭제했습니다. (구글 드라이브 휴지통에 30일간 보관)"}catch(err){renderLib();$("#l-msg").textContent="삭제하지 못했습니다."}}});
+renderNotices();
 restoreDraft();paintPM();merge();
 if(pin){document.body.classList.remove("locked");load()}else{setMode(false,"PIN 입력 필요");askPin()}
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
